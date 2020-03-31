@@ -3,6 +3,7 @@ const connection = require('../database/connection');
 module.exports = {
   async create(req, res) {
     const { title, description, value } = req.body;
+
     //Vai buscar o id da ong logada
     const ong_id = req.headers.autorization;
 
@@ -16,7 +17,25 @@ module.exports = {
   },
 
   async list(req, res) {
-    const incidents = await connection('incidents').select('*');
+    //Paginação
+    const { page = 1 } = req.query;
+    //Vai retornar a quantidade total de casos para o front
+    const [count] = await connection('incidents').count();
+
+    const incidents = await connection('incidents')
+      .join('ongs', 'ongs.id', '=', 'incidents.ong_id')//Vai relacionar dados das duas tabelas trazendo informações da tabela ong
+      .limit(5)//Vai lmimitar pra 5 registro(incidentes)
+      .offset((page - 1) * 5)//Vai pular 5 registros por pagina
+      .select([
+        'incidents.*',
+        'ongs.nome',
+        'ongs.email',
+        'ongs.whatsapp',
+        'ongs.city',
+        'ongs.uf']);
+
+    //Vai passar o total de incidentes pelo headers da pagina 
+    res.header('X-Total-Count', count['count(*)']);
 
     return res.json(incidents)
   },
